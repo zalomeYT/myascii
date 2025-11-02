@@ -404,9 +404,6 @@
                         <button class="download-btn" onclick="downloadFile(${file.id})">
                             ⬇️ Скачать .bat
                         </button>
-                        <button class="delete-btn" onclick="deleteFile(${file.id})">
-                            🗑️ Удалить
-                        </button>
                     </div>
                 `).join('');
             }
@@ -430,14 +427,6 @@
                 a.download = file.name;
                 a.click();
                 URL.revokeObjectURL(url);
-            }
-        }
-
-        function deleteFile(id) {
-            if (confirm('Удалить этот файл из библиотеки?')) {
-                files = files.filter(f => f.id !== id);
-                saveFiles();
-                renderGallery();
             }
         }
 
