@@ -44,6 +44,68 @@
             margin-bottom: 30px;
         }
 
+        .upload-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
         .gallery {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -109,6 +171,22 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
 
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #ee5a6f;
+        }
+
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -119,23 +197,6 @@
             font-size: 4em;
             margin-bottom: 20px;
             opacity: 0.7;
-        }
-
-        .loading-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: white;
-        }
-
-        .loading-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-            animation: spin 2s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         @keyframes fadeInDown {
@@ -166,7 +227,6 @@
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
             }
         }
 
@@ -208,15 +268,6 @@
             color: #666;
             font-size: 0.9em;
         }
-
-        .error-message {
-            background: #ff4757;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
@@ -237,100 +288,90 @@
             </div>
         </div>
 
-        <div id="errorContainer"></div>
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <h3>Загрузить .bat файлы</h3>
+                <p style="color: #666; margin: 15px 0;">Перетащите файлы сюда или нажмите для выбора</p>
+                <button class="btn" onclick="document.getElementById('fileInput').click()">
+                    Выбрать файлы
+                </button>
+                <input type="file" id="fileInput" accept=".bat" multiple>
+            </div>
+        </div>
 
         <div class="gallery" id="gallery"></div>
 
-        <div class="loading-state" id="loadingState">
-            <div class="loading-icon">⏳</div>
-            <h2>Загрузка файлов...</h2>
-        </div>
-
-        <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-state" id="emptyState">
             <div class="empty-icon">🎬</div>
-            <h2>Файлы не найдены</h2>
-            <p>В папке bat_files пока нет .bat файлов</p>
+            <h2>Библиотека пуста</h2>
+            <p>Загрузите .bat файлы с ASCII анимациями</p>
         </div>
     </div>
 
     <script>
-        const BAT_FILES_FOLDER = 'bat_files/';
-        let files = [];
+        let files = JSON.parse(localStorage.getItem('asciiFiles')) || [];
 
-        // Список файлов - здесь нужно указать имена всех .bat файлов в папке
-        // Этот список можно генерировать автоматически с помощью GitHub API
-        const FILE_LIST = [
-            // Добавьте сюда имена ваших .bat файлов
-            // Например: 'animation1.bat', 'animation2.bat'
-        ];
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const gallery = document.getElementById('gallery');
+        const emptyState = document.getElementById('emptyState');
 
-        async function loadFiles() {
-            const gallery = document.getElementById('gallery');
-            const emptyState = document.getElementById('emptyState');
-            const loadingState = document.getElementById('loadingState');
-            const errorContainer = document.getElementById('errorContainer');
+        // Drag & Drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
 
-            try {
-                // Пытаемся загрузить файл file_list.json, который содержит список всех .bat файлов
-                const response = await fetch(BAT_FILES_FOLDER + 'file_list.json');
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
 
-                if (response.ok) {
-                    const fileNames = await response.json();
-                    await loadBatFiles(fileNames);
-                } else {
-                    // Если file_list.json не найден, используем жестко заданный список
-                    if (FILE_LIST.length > 0) {
-                        await loadBatFiles(FILE_LIST);
-                    } else {
-                        throw new Error('Список файлов не найден. Создайте file_list.json в папке bat_files или укажите файлы в FILE_LIST');
-                    }
-                }
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
 
-                loadingState.style.display = 'none';
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
 
-                if (files.length === 0) {
-                    gallery.style.display = 'none';
-                    emptyState.style.display = 'block';
-                } else {
-                    gallery.style.display = 'grid';
-                    emptyState.style.display = 'none';
-                    renderGallery();
-                }
-            } catch (error) {
-                loadingState.style.display = 'none';
-                emptyState.style.display = 'block';
-                errorContainer.innerHTML = `<div class="error-message">⚠️ ${error.message}</div>`;
-            }
-        }
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
 
-        async function loadBatFiles(fileNames) {
-            for (const fileName of fileNames) {
-                try {
-                    const response = await fetch(BAT_FILES_FOLDER + fileName);
-                    if (response.ok) {
-                        const content = await response.text();
-                        const blob = await response.blob();
+        function handleFiles(fileList) {
+            Array.from(fileList).forEach(file => {
+                if (file.name.endsWith('.bat')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const content = e.target.result;
                         const preview = extractPreview(content);
-
-                        files.push({
-                            name: fileName,
+                        
+                        const fileData = {
+                            id: Date.now() + Math.random(),
+                            name: file.name,
                             content: content,
                             preview: preview,
-                            size: blob.size,
-                            url: BAT_FILES_FOLDER + fileName
-                        });
-                    }
-                } catch (error) {
-                    console.error(`Ошибка при загрузке ${fileName}:`, error);
+                            size: file.size,
+                            date: new Date().toLocaleDateString('ru-RU')
+                        };
+                        
+                        files.push(fileData);
+                        saveFiles();
+                        renderGallery();
+                    };
+                    reader.readAsText(file);
                 }
-            }
+            });
         }
 
         function extractPreview(content) {
             const lines = content.split('\n');
             let preview = '';
             let count = 0;
-
+            
             for (let line of lines) {
                 if (line.includes('echo.') || line.startsWith('echo ')) {
                     const text = line.replace(/^echo\.?/, '').trim();
@@ -341,26 +382,35 @@
                     }
                 }
             }
-
+            
             return preview || 'ASCII анимация';
         }
 
         function renderGallery() {
-            const gallery = document.getElementById('gallery');
-
-            gallery.innerHTML = files.map((file, index) => `
-                <div class="card">
-                    <div class="card-preview">${file.preview}</div>
-                    <div class="card-title">${file.name}</div>
-                    <div class="card-info">
-                        💾 ${(file.size / 1024).toFixed(1)} KB
+            if (files.length === 0) {
+                gallery.style.display = 'none';
+                emptyState.style.display = 'block';
+            } else {
+                gallery.style.display = 'grid';
+                emptyState.style.display = 'none';
+                
+                gallery.innerHTML = files.map(file => `
+                    <div class="card">
+                        <div class="card-preview">${file.preview}</div>
+                        <div class="card-title">${file.name}</div>
+                        <div class="card-info">
+                            📅 ${file.date} | 💾 ${(file.size / 1024).toFixed(1)} KB
+                        </div>
+                        <button class="download-btn" onclick="downloadFile(${file.id})">
+                            ⬇️ Скачать .bat
+                        </button>
+                        <button class="delete-btn" onclick="deleteFile(${file.id})">
+                            🗑️ Удалить
+                        </button>
                     </div>
-                    <button class="download-btn" onclick="downloadFile(${index})">
-                        ⬇️ Скачать .bat
-                    </button>
-                </div>
-            `).join('');
-
+                `).join('');
+            }
+            
             updateStats();
         }
 
@@ -370,19 +420,33 @@
             document.getElementById('totalSize').textContent = (totalSize / 1024).toFixed(1) + ' KB';
         }
 
-        function downloadFile(index) {
-            const file = files[index];
-            const blob = new Blob([file.content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.name;
-            a.click();
-            URL.revokeObjectURL(url);
+        function downloadFile(id) {
+            const file = files.find(f => f.id === id);
+            if (file) {
+                const blob = new Blob([file.content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function deleteFile(id) {
+            if (confirm('Удалить этот файл из библиотеки?')) {
+                files = files.filter(f => f.id !== id);
+                saveFiles();
+                renderGallery();
+            }
+        }
+
+        function saveFiles() {
+            localStorage.setItem('asciiFiles', JSON.stringify(files));
         }
 
         // Инициализация
-        loadFiles();
+        renderGallery();
     </script>
 </body>
 </html>
